@@ -3,12 +3,22 @@
 <head>
   <title>SnipScreen Editor</title>
   <link rel="stylesheet" href="editor.css">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
   <div class="toolbar">
-    <button id="cropBtn" class="tool-btn">Crop</button>
-    <button id="annotateBtn" class="tool-btn">Annotate</button>
-    <button id="saveBtn" class="tool-btn">Save</button>
+    <button id="cropBtn" class="tool-btn secondary">
+      <i class="fas fa-crop"></i>
+      Crop
+    </button>
+    <button id="annotateBtn" class="tool-btn secondary">
+      <i class="fas fa-pen"></i>
+      Annotate
+    </button>
+    <button id="saveBtn" class="tool-btn primary">
+      <i class="fas fa-save"></i>
+      Save
+    </button>
   </div>
   <div id="editorContainer">
     <canvas id="editorCanvas"></canvas>

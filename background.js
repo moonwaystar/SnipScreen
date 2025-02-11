@@ -28,13 +28,13 @@ chrome.action.onClicked.addListener(async (tab) => {
         });
       } catch (error) {
         console.error('Screenshot failed:', error);
+        showNotification('Failed to capture screenshot');
       }
       clickCount = 0;
     }, 300);
   } else {
     clearTimeout(clickTimer);
     try {
-      // Capture only the visible tab content
       const screenshotUrl = await chrome.tabs.captureVisibleTab(null, {
         format: 'png',
         quality: 100
@@ -47,9 +47,21 @@ chrome.action.onClicked.addListener(async (tab) => {
         filename: `${saveLocation}/screenshot-${Date.now()}.png`,
         saveAs: false
       });
+      
+      showNotification('Screenshot saved');
     } catch (error) {
       console.error('Screenshot failed:', error);
+      showNotification('Failed to capture screenshot');
     }
     clickCount = 0;
   }
 });
+
+function showNotification(message) {
+  chrome.notifications.create({
+    type: 'basic',
+    iconUrl: 'icons/icon128.png',
+    title: 'SnipScreen',
+    message: message
+  });
+}
