@@ -1,22 +1,26 @@
 {
-    "manifest_version": 3,
-    "name": "SnipScreen",
-    "version": "1.0",
-    "description": "A Chrome Extension for capturing and cropping screenshots",
-    "permissions": [
-      "activeTab",
-      "scripting",
-      "downloads",
-      "storage",
-      "tabs"
-    ],
-    "host_permissions": [
-      "<all_urls>"
-    ],
-    "background": {
-      "service_worker": "background.js"
-    },
-    "action": {
-      "default_title": "Take Screenshot"
-    }
-  }
+  "manifest_version": 3,
+  "name": "SnipScreen",
+  "version": "1.1",
+  "description": "A Chrome Extension for capturing, cropping, and annotating screenshots",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "downloads",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Take Screenshot"
+  },
+  "web_accessible_resources": [{
+    "resources": ["editor.html", "editor.js", "editor.css"],
+    "matches": ["<all_urls>"]
+  }]
+}
