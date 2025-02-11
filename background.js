@@ -11,7 +11,6 @@ chrome.action.onClicked.addListener(async (tab) => {
   
   if (clickCount === 1) {
     clickTimer = setTimeout(async () => {
-      // Single click - capture and open editor
       try {
         const screenshotUrl = await chrome.tabs.captureVisibleTab(null, {
           format: 'png',
@@ -34,13 +33,14 @@ chrome.action.onClicked.addListener(async (tab) => {
     }, 300);
   } else {
     clearTimeout(clickTimer);
-    // Double click - direct save
     try {
-      const { saveLocation } = await chrome.storage.sync.get(['saveLocation']);
+      // Capture only the visible tab content
       const screenshotUrl = await chrome.tabs.captureVisibleTab(null, {
         format: 'png',
         quality: 100
       });
+      
+      const { saveLocation } = await chrome.storage.sync.get(['saveLocation']);
       
       await chrome.downloads.download({
         url: screenshotUrl,

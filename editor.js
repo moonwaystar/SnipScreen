@@ -8,6 +8,7 @@ class ScreenshotEditor {
     this.cropEnd = null;
     this.cropOverlay = document.createElement('canvas');
     this.cropCtx = this.cropOverlay.getContext('2d');
+    this.cropGuides = { width: 0, height: 0 };
     
     this.initializeButtons();
     this.loadScreenshot();
@@ -72,17 +73,13 @@ class ScreenshotEditor {
     const pos = this.getMousePos(e);
     
     if (this.currentTool === 'crop') {
-      this.cropCtx.clearRect(0, 0, this.cropOverlay.width, this.cropOverlay.height);
-      this.cropCtx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-      this.cropCtx.fillRect(0, 0, this.cropOverlay.width, this.cropOverlay.height);
-      
       const width = pos.x - this.cropStart.x;
       const height = pos.y - this.cropStart.y;
       
-      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-      this.ctx.drawImage(this.originalImage, 0, 0);
-      this.ctx.drawImage(this.cropOverlay, 0, 0);
-      this.cropCtx.clearRect(this.cropStart.x, this.cropStart.y, width, height);
+      const startX = Math.min(this.cropStart.x, pos.x);
+      const startY = Math.min(this.cropStart.y, pos.y);
+      
+      this.drawCropGuides(startX, startY, Math.abs(width), Math.abs(height));
     }
     
     if (this.currentTool === 'annotate') {
@@ -110,6 +107,74 @@ class ScreenshotEditor {
     this.cropCtx.clearRect(0, 0, this.cropOverlay.width, this.cropOverlay.height);
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.drawImage(this.originalImage, 0, 0);
+  }
+
+  drawCropGuides(x, y, width, height) {
+    // Clear previous overlay
+    this.cropCtx.clearRect(0, 0, this.cropOverlay.width, this.cropOverlay.height);
+    
+    // Draw semi-transparent overlay
+    this.cropCtx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    this.cropCtx.fillRect(0, 0, this.cropOverlay.width, this.cropOverlay.height);
+    
+    // Clear the crop area
+    this.cropCtx.clearRect(x, y, width, height);
+    
+    // Draw dotted border
+    this.cropCtx.setLineDash([5, 5]);
+    this.cropCtx.strokeStyle = '#ffffff';
+    this.cropCtx.lineWidth = 2;
+    this.cropCtx.strokeRect(x, y, width, height);
+    
+    // Draw solid blue border
+    this.cropCtx.setLineDash([]);
+    this.cropCtx.strokeStyle = '#2196F3';
+    this.cropCtx.lineWidth = 1;
+    this.cropCtx.strokeRect(x - 1, y - 1, width + 2, height + 2);
+    
+    // Draw corner handles
+    this.drawCornerHandles(x, y, width, height);
+    
+    // Draw dimension label
+    this.showCropDimensions(x, y, width, height);
+    
+    // Update main canvas
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.drawImage(this.originalImage, 0, 0);
+    this.ctx.drawImage(this.cropOverlay, 0, 0);
+  }
+
+  drawCornerHandles(x, y, width, height) {
+    const handleSize = 8;
+    const corners = [
+      [x, y],
+      [x + width, y],
+      [x, y + height],
+      [x + width, y + height]
+    ];
+    
+    this.cropCtx.fillStyle = '#2196F3';
+    corners.forEach(([cx, cy]) => {
+      this.cropCtx.fillRect(
+        cx - handleSize/2,
+        cy - handleSize/2,
+        handleSize,
+        handleSize
+      );
+    });
+  }
+
+  showCropDimensions(x, y, width, height) {
+    // Create label background
+    this.cropCtx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    const text = `${Math.round(width)} × ${Math.round(height)}`;
+    const textWidth = this.cropCtx.measureText(text).width;
+    this.cropCtx.fillRect(x + 5, y + 5, textWidth + 10, 20);
+    
+    // Draw text
+    this.cropCtx.fillStyle = '#ffffff';
+    this.cropCtx.font = '12px Arial';
+    this.cropCtx.fillText(text, x + 10, y + 19);
   }
 
   async saveImage() {
@@ -152,4 +217,6 @@ class ScreenshotEditor {
   }
 }
 
-new ScreenshotEditor();
+document.addEventListener('DOMContentLoaded', () => {
+  new ScreenshotEditor();
+});
