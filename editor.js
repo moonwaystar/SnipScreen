@@ -1,14 +1,15 @@
 class ScreenshotEditor {
   constructor() {
     this.canvas = document.getElementById('editorCanvas');
-    this.ctx = this.canvas.getContext('2d');
+    this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
     this.activeTools = new Set();
     this.isDrawing = false;
     this.cropStart = null;
     this.cropEnd = null;
     this.cropOverlay = document.createElement('canvas');
-    this.cropCtx = this.cropOverlay.getContext('2d');
+    this.cropCtx = this.cropOverlay.getContext('2d', { willReadFrequently: true });
     this.cropGuides = { width: 0, height: 0 };
+    this.currentImageData = null;
     
     this.initializeButtons();
     this.loadScreenshot();
@@ -25,6 +26,7 @@ class ScreenshotEditor {
       this.cropOverlay.height = img.height;
       this.ctx.drawImage(img, 0, 0);
       this.originalImage = img;
+      this.currentImageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
     };
     img.src = currentScreenshot;
   }
@@ -54,11 +56,11 @@ class ScreenshotEditor {
       btn.classList.remove('active');
       btn.classList.add('secondary');
     } else {
-      // Deactivate other tool if active
       if (this.activeTools.has(otherTool)) {
         this.activeTools.delete(otherTool);
         otherBtn.classList.remove('active');
         otherBtn.classList.add('secondary');
+        this.currentImageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
       }
       
       this.activeTools.add(tool);
@@ -66,13 +68,42 @@ class ScreenshotEditor {
       btn.classList.add('active');
     }
     
-    // Reset canvas state
-    this.clearSelection();
+    if (tool === 'crop' && this.currentImageData) {
+      this.ctx.putImageData(this.currentImageData, 0, 0);
+    }
   }
 
   async copyToClipboard() {
     try {
-      const dataUrl = this.canvas.toDataURL('image/png');
+      let finalCanvas = document.createElement('canvas');
+      let finalCtx = finalCanvas.getContext('2d');
+      
+      if (this.cropStart && this.cropEnd && this.activeTools.has('crop')) {
+        const width = Math.abs(this.cropEnd.x - this.cropStart.x);
+        const height = Math.abs(this.cropEnd.y - this.cropStart.y);
+        const startX = Math.min(this.cropStart.x, this.cropEnd.x);
+        const startY = Math.min(this.cropStart.y, this.cropEnd.y);
+        
+        finalCanvas.width = width;
+        finalCanvas.height = height;
+        finalCtx.drawImage(
+          this.canvas,
+          startX,
+          startY,
+          width,
+          height,
+          0,
+          0,
+          width,
+          height
+        );
+      } else {
+        finalCanvas.width = this.canvas.width;
+        finalCanvas.height = this.canvas.height;
+        finalCtx.drawImage(this.canvas, 0, 0);
+      }
+
+      const dataUrl = finalCanvas.toDataURL('image/png');
       const response = await fetch(dataUrl);
       const blob = await response.blob();
       await navigator.clipboard.write([
@@ -155,9 +186,7 @@ class ScreenshotEditor {
     
     if (this.activeTools.has('annotate')) {
       const width = pos.x - this.annotateStart.x;
-      this.ctx.lineTo(pos.x, pos.y);
       const height = pos.y - this.annotateStart.y;
-      this.ctx.stroke();
       this.ctx.fillStyle = '#000';
       this.ctx.fillRect(this.annotateStart.x, this.annotateStart.y, width, height);
     }
@@ -175,6 +204,7 @@ class ScreenshotEditor {
     
     if (this.activeTools.has('annotate')) {
       this.ctx.closePath();
+      this.currentImageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
     }
   }
 
@@ -182,8 +212,12 @@ class ScreenshotEditor {
     this.cropStart = null;
     this.cropEnd = null;
     this.cropCtx.clearRect(0, 0, this.cropOverlay.width, this.cropOverlay.height);
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    this.ctx.drawImage(this.originalImage, 0, 0);
+    if (this.currentImageData) {
+      this.ctx.putImageData(this.currentImageData, 0, 0);
+    } else {
+      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      this.ctx.drawImage(this.originalImage, 0, 0);
+    }
   }
 
   drawCropGuides(x, y, width, height) {
@@ -207,8 +241,12 @@ class ScreenshotEditor {
     this.drawCornerHandles(x, y, width, height);
     this.showCropDimensions(x, y, width, height);
     
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    this.ctx.drawImage(this.originalImage, 0, 0);
+    if (this.currentImageData) {
+      this.ctx.putImageData(this.currentImageData, 0, 0);
+    } else {
+      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      this.ctx.drawImage(this.originalImage, 0, 0);
+    }
     this.ctx.drawImage(this.cropOverlay, 0, 0);
   }
 
