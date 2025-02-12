@@ -2,7 +2,7 @@ class ScreenshotEditor {
   constructor() {
     this.canvas = document.getElementById('editorCanvas');
     this.ctx = this.canvas.getContext('2d');
-    this.currentTool = null;
+    this.activeTools = new Set();
     this.isDrawing = false;
     this.cropStart = null;
     this.cropEnd = null;
@@ -33,9 +33,10 @@ class ScreenshotEditor {
     const buttons = ['crop', 'annotate'];
     buttons.forEach(tool => {
       const btn = document.getElementById(`${tool}Btn`);
-      btn.addEventListener('click', () => this.setTool(tool));
+      btn.addEventListener('click', () => this.toggleTool(tool));
     });
     
+    document.getElementById('shareBtn').addEventListener('click', () => this.copyToClipboard());
     document.getElementById('saveBtn').addEventListener('click', async () => {
       this.showToast('Saving screenshot...');
       await this.saveImage();
@@ -43,22 +44,35 @@ class ScreenshotEditor {
     });
   }
 
-  setTool(tool) {
-    const buttons = document.querySelectorAll('.tool-btn');
-    buttons.forEach(btn => {
+  toggleTool(tool) {
+    const btn = document.getElementById(`${tool}Btn`);
+    
+    if (this.activeTools.has(tool)) {
+      this.activeTools.delete(tool);
       btn.classList.remove('active');
       btn.classList.add('secondary');
-    });
-    
-    if (tool) {
-      const activeBtn = document.getElementById(`${tool}Btn`);
-      activeBtn.classList.remove('secondary');
-      activeBtn.classList.add('active');
-      this.showToast(`${tool.charAt(0).toUpperCase() + tool.slice(1)} tool selected`);
+    } else {
+      this.activeTools.add(tool);
+      btn.classList.remove('secondary');
+      btn.classList.add('active');
     }
-    
-    this.currentTool = tool;
-    this.clearSelection();
+  }
+
+  async copyToClipboard() {
+    try {
+      const dataUrl = this.canvas.toDataURL('image/png');
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          [blob.type]: blob
+        })
+      ]);
+      this.showToast('Screenshot copied to clipboard!');
+    } catch (error) {
+      console.error('Copy failed:', error);
+      this.showToast('Failed to copy screenshot');
+    }
   }
 
   showToast(message) {
@@ -96,26 +110,28 @@ class ScreenshotEditor {
   }
 
   handleMouseDown(e) {
-    if (!this.currentTool) return;
-    
-    this.isDrawing = true;
     const pos = this.getMousePos(e);
+    this.isDrawing = true;
     
-    if (this.currentTool === 'crop') {
+    if (this.activeTools.has('crop')) {
       this.cropStart = pos;
     }
     
-    if (this.currentTool === 'annotate') {
+    if (this.activeTools.has('annotate')) {
       this.annotateStart = pos;
+      this.ctx.beginPath();
+      this.ctx.moveTo(pos.x, pos.y);
+      this.ctx.strokeStyle = '#000000';
+      this.ctx.lineWidth = 2;
     }
   }
 
   handleMouseMove(e) {
-    if (!this.isDrawing || !this.currentTool) return;
+    if (!this.isDrawing) return;
     
     const pos = this.getMousePos(e);
     
-    if (this.currentTool === 'crop') {
+    if (this.activeTools.has('crop') && this.cropStart) {
       const width = pos.x - this.cropStart.x;
       const height = pos.y - this.cropStart.y;
       
@@ -125,7 +141,7 @@ class ScreenshotEditor {
       this.drawCropGuides(startX, startY, Math.abs(width), Math.abs(height));
     }
     
-    if (this.currentTool === 'annotate') {
+    if (this.activeTools.has('annotate')) {
       const width = pos.x - this.annotateStart.x;
       const height = pos.y - this.annotateStart.y;
       this.ctx.fillStyle = '#000';
@@ -139,8 +155,12 @@ class ScreenshotEditor {
     
     const pos = this.getMousePos(e);
     
-    if (this.currentTool === 'crop') {
+    if (this.activeTools.has('crop')) {
       this.cropEnd = pos;
+    }
+    
+    if (this.activeTools.has('annotate')) {
+      this.ctx.closePath();
     }
   }
 
@@ -214,7 +234,7 @@ class ScreenshotEditor {
       let finalCanvas = document.createElement('canvas');
       let finalCtx = finalCanvas.getContext('2d');
       
-      if (this.cropStart && this.cropEnd && this.currentTool === 'crop') {
+      if (this.cropStart && this.cropEnd && this.activeTools.has('crop')) {
         const width = Math.abs(this.cropEnd.x - this.cropStart.x);
         const height = Math.abs(this.cropEnd.y - this.cropStart.y);
         const startX = Math.min(this.cropStart.x, this.cropEnd.x);
@@ -223,7 +243,7 @@ class ScreenshotEditor {
         finalCanvas.width = width;
         finalCanvas.height = height;
         finalCtx.drawImage(
-          this.originalImage,
+          this.canvas,
           startX,
           startY,
           width,

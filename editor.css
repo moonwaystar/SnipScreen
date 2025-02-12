@@ -114,3 +114,12 @@ body {
 .toast.show {
   opacity: 1;
 }
+
+.tool-btn.share {
+  background: #4CAF50;
+  color: white;
+}
+
+.tool-btn.share:hover {
+  background: #388E3C;
+}
