@@ -46,16 +46,28 @@ class ScreenshotEditor {
 
   toggleTool(tool) {
     const btn = document.getElementById(`${tool}Btn`);
+    const otherTool = tool === 'crop' ? 'annotate' : 'crop';
+    const otherBtn = document.getElementById(`${otherTool}Btn`);
     
     if (this.activeTools.has(tool)) {
       this.activeTools.delete(tool);
       btn.classList.remove('active');
       btn.classList.add('secondary');
     } else {
+      // Deactivate other tool if active
+      if (this.activeTools.has(otherTool)) {
+        this.activeTools.delete(otherTool);
+        otherBtn.classList.remove('active');
+        otherBtn.classList.add('secondary');
+      }
+      
       this.activeTools.add(tool);
       btn.classList.remove('secondary');
       btn.classList.add('active');
     }
+    
+    // Reset canvas state
+    this.clearSelection();
   }
 
   async copyToClipboard() {
@@ -143,7 +155,9 @@ class ScreenshotEditor {
     
     if (this.activeTools.has('annotate')) {
       const width = pos.x - this.annotateStart.x;
+      this.ctx.lineTo(pos.x, pos.y);
       const height = pos.y - this.annotateStart.y;
+      this.ctx.stroke();
       this.ctx.fillStyle = '#000';
       this.ctx.fillRect(this.annotateStart.x, this.annotateStart.y, width, height);
     }
