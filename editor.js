@@ -14,21 +14,57 @@ class ScreenshotEditor {
     this.initializeButtons();
     this.loadScreenshot();
     this.setupEventListeners();
+    
+    window.addEventListener('beforeunload', () => this.cleanup());
+    
+    this.throttledDrawCropGuides = this.throttle((pos) => {
+      const width = pos.x - this.cropStart.x;
+      const height = pos.y - this.cropStart.y;
+      const startX = Math.min(this.cropStart.x, pos.x);
+      const startY = Math.min(this.cropStart.y, pos.y);
+      this.drawCropGuides(startX, startY, Math.abs(width), Math.abs(height));
+    }, 16);
+  }
+
+  throttle(func, limit) {
+    let inThrottle;
+    return function(...args) {
+      if (!inThrottle) {
+        func.apply(this, args);
+        inThrottle = true;
+        setTimeout(() => inThrottle = false, limit);
+      }
+    }
+  }
+
+  cleanup() {
+    chrome.storage.local.remove(['currentScreenshot', 'originalTab']);
+    this.ctx = null;
+    this.cropCtx = null;
+    this.canvas = null;
+    this.cropOverlay = null;
+    this.originalImage = null;
+    this.currentImageData = null;
   }
 
   async loadScreenshot() {
-    const { currentScreenshot } = await chrome.storage.local.get(['currentScreenshot']);
-    const img = new Image();
-    img.onload = () => {
-      this.canvas.width = img.width;
-      this.canvas.height = img.height;
-      this.cropOverlay.width = img.width;
-      this.cropOverlay.height = img.height;
-      this.ctx.drawImage(img, 0, 0);
-      this.originalImage = img;
-      this.currentImageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-    };
-    img.src = currentScreenshot;
+    try {
+      const { currentScreenshot } = await chrome.storage.local.get(['currentScreenshot']);
+      const img = new Image();
+      img.onload = () => {
+        this.canvas.width = img.width;
+        this.canvas.height = img.height;
+        this.cropOverlay.width = img.width;
+        this.cropOverlay.height = img.height;
+        this.ctx.drawImage(img, 0, 0);
+        this.originalImage = img;
+        this.currentImageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+      };
+      img.src = currentScreenshot;
+    } catch (error) {
+      console.error('Failed to load screenshot:', error);
+      this.showToast('Failed to load screenshot');
+    }
   }
 
   initializeButtons() {
@@ -76,7 +112,7 @@ class ScreenshotEditor {
   async copyToClipboard() {
     try {
       let finalCanvas = document.createElement('canvas');
-      let finalCtx = finalCanvas.getContext('2d');
+      let finalCtx = finalCanvas.getContext('2d', { willReadFrequently: true });
       
       if (this.cropStart && this.cropEnd && this.activeTools.has('crop')) {
         const width = Math.abs(this.cropEnd.x - this.cropStart.x);
@@ -114,28 +150,8 @@ class ScreenshotEditor {
       this.showToast('Screenshot copied to clipboard!');
     } catch (error) {
       console.error('Copy failed:', error);
-      this.showToast('Failed to copy screenshot');
+      this.showToast(`Failed to copy: ${error.message}`);
     }
-  }
-
-  showToast(message) {
-    const existingToast = document.querySelector('.toast');
-    if (existingToast) {
-      existingToast.remove();
-    }
-
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.textContent = message;
-    document.body.appendChild(toast);
-
-    toast.offsetHeight;
-    toast.classList.add('show');
-
-    setTimeout(() => {
-      toast.classList.remove('show');
-      setTimeout(() => toast.remove(), 300);
-    }, 2000);
   }
 
   setupEventListeners() {
@@ -175,13 +191,7 @@ class ScreenshotEditor {
     const pos = this.getMousePos(e);
     
     if (this.activeTools.has('crop') && this.cropStart) {
-      const width = pos.x - this.cropStart.x;
-      const height = pos.y - this.cropStart.y;
-      
-      const startX = Math.min(this.cropStart.x, pos.x);
-      const startY = Math.min(this.cropStart.y, pos.y);
-      
-      this.drawCropGuides(startX, startY, Math.abs(width), Math.abs(height));
+      this.throttledDrawCropGuides(pos);
     }
     
     if (this.activeTools.has('annotate')) {
@@ -205,18 +215,6 @@ class ScreenshotEditor {
     if (this.activeTools.has('annotate')) {
       this.ctx.closePath();
       this.currentImageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-    }
-  }
-
-  clearSelection() {
-    this.cropStart = null;
-    this.cropEnd = null;
-    this.cropCtx.clearRect(0, 0, this.cropOverlay.width, this.cropOverlay.height);
-    if (this.currentImageData) {
-      this.ctx.putImageData(this.currentImageData, 0, 0);
-    } else {
-      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-      this.ctx.drawImage(this.originalImage, 0, 0);
     }
   }
 
@@ -284,7 +282,7 @@ class ScreenshotEditor {
   async saveImage() {
     try {
       let finalCanvas = document.createElement('canvas');
-      let finalCtx = finalCanvas.getContext('2d');
+      let finalCtx = finalCanvas.getContext('2d', { willReadFrequently: true });
       
       if (this.cropStart && this.cropEnd && this.activeTools.has('crop')) {
         const width = Math.abs(this.cropEnd.x - this.cropStart.x);
@@ -320,9 +318,29 @@ class ScreenshotEditor {
         saveAs: false
       });
     } catch (error) {
-      this.showToast('Error saving screenshot');
+      this.showToast(`Save failed: ${error.message}`);
       console.error('Save failed:', error);
     }
+  }
+
+  showToast(message) {
+    const existingToast = document.querySelector('.toast');
+    if (existingToast) {
+      existingToast.remove();
+    }
+
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    toast.offsetHeight;
+    toast.classList.add('show');
+
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => toast.remove(), 300);
+    }, 2000);
   }
 }
 

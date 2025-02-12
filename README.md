@@ -4,7 +4,7 @@ A powerful Chrome extension for capturing, editing, and sharing screenshots with
 
 ## Features ✨
 
-- Single-click to open editor, double-click for quick save
+- Single-click to open editor
 - Screenshot editing capabilities:
   - Crop tool with visual guides and dimensions
   - Annotation tool for basic markup
@@ -32,8 +32,7 @@ Since this extension isn't available on the Chrome Web Store, follow these steps
 ## Usage 💡
 
 1. Click extension icon once: Opens editor
-2. Double-click icon: Quick saves screenshot
-3. Editor Tools:
+2. Editor Tools:
    - Crop: Select area with visual guides
    - Annotate: Add basic markups
    - Share: Copy to clipboard
