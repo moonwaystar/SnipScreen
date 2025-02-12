@@ -30,14 +30,55 @@ class ScreenshotEditor {
   }
 
   initializeButtons() {
-    document.getElementById('cropBtn').addEventListener('click', () => this.setTool('crop'));
-    document.getElementById('annotateBtn').addEventListener('click', () => this.setTool('annotate'));
-    document.getElementById('saveBtn').addEventListener('click', () => this.saveImage());
+    const buttons = ['crop', 'annotate'];
+    buttons.forEach(tool => {
+      const btn = document.getElementById(`${tool}Btn`);
+      btn.addEventListener('click', () => this.setTool(tool));
+    });
+    
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+      this.showToast('Saving screenshot...');
+      await this.saveImage();
+      this.showToast('Screenshot saved successfully!');
+    });
   }
 
   setTool(tool) {
+    const buttons = document.querySelectorAll('.tool-btn');
+    buttons.forEach(btn => {
+      btn.classList.remove('active');
+      btn.classList.add('secondary');
+    });
+    
+    if (tool) {
+      const activeBtn = document.getElementById(`${tool}Btn`);
+      activeBtn.classList.remove('secondary');
+      activeBtn.classList.add('active');
+      this.showToast(`${tool.charAt(0).toUpperCase() + tool.slice(1)} tool selected`);
+    }
+    
     this.currentTool = tool;
     this.clearSelection();
+  }
+
+  showToast(message) {
+    const existingToast = document.querySelector('.toast');
+    if (existingToast) {
+      existingToast.remove();
+    }
+
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    toast.offsetHeight;
+    toast.classList.add('show');
+
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => toast.remove(), 300);
+    }, 2000);
   }
 
   setupEventListeners() {
@@ -55,6 +96,8 @@ class ScreenshotEditor {
   }
 
   handleMouseDown(e) {
+    if (!this.currentTool) return;
+    
     this.isDrawing = true;
     const pos = this.getMousePos(e);
     
@@ -68,7 +111,7 @@ class ScreenshotEditor {
   }
 
   handleMouseMove(e) {
-    if (!this.isDrawing) return;
+    if (!this.isDrawing || !this.currentTool) return;
     
     const pos = this.getMousePos(e);
     
@@ -110,35 +153,26 @@ class ScreenshotEditor {
   }
 
   drawCropGuides(x, y, width, height) {
-    // Clear previous overlay
     this.cropCtx.clearRect(0, 0, this.cropOverlay.width, this.cropOverlay.height);
     
-    // Draw semi-transparent overlay
     this.cropCtx.fillStyle = 'rgba(0, 0, 0, 0.5)';
     this.cropCtx.fillRect(0, 0, this.cropOverlay.width, this.cropOverlay.height);
     
-    // Clear the crop area
     this.cropCtx.clearRect(x, y, width, height);
     
-    // Draw dotted border
     this.cropCtx.setLineDash([5, 5]);
     this.cropCtx.strokeStyle = '#ffffff';
     this.cropCtx.lineWidth = 2;
     this.cropCtx.strokeRect(x, y, width, height);
     
-    // Draw solid blue border
     this.cropCtx.setLineDash([]);
     this.cropCtx.strokeStyle = '#2196F3';
     this.cropCtx.lineWidth = 1;
     this.cropCtx.strokeRect(x - 1, y - 1, width + 2, height + 2);
     
-    // Draw corner handles
     this.drawCornerHandles(x, y, width, height);
-    
-    // Draw dimension label
     this.showCropDimensions(x, y, width, height);
     
-    // Update main canvas
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.drawImage(this.originalImage, 0, 0);
     this.ctx.drawImage(this.cropOverlay, 0, 0);
@@ -165,55 +199,58 @@ class ScreenshotEditor {
   }
 
   showCropDimensions(x, y, width, height) {
-    // Create label background
     this.cropCtx.fillStyle = 'rgba(0, 0, 0, 0.8)';
     const text = `${Math.round(width)} × ${Math.round(height)}`;
+    this.cropCtx.font = '12px Arial';
     const textWidth = this.cropCtx.measureText(text).width;
     this.cropCtx.fillRect(x + 5, y + 5, textWidth + 10, 20);
     
-    // Draw text
     this.cropCtx.fillStyle = '#ffffff';
-    this.cropCtx.font = '12px Arial';
     this.cropCtx.fillText(text, x + 10, y + 19);
   }
 
   async saveImage() {
-    let finalCanvas = document.createElement('canvas');
-    let finalCtx = finalCanvas.getContext('2d');
-    
-    if (this.cropStart && this.cropEnd && this.currentTool === 'crop') {
-      const width = Math.abs(this.cropEnd.x - this.cropStart.x);
-      const height = Math.abs(this.cropEnd.y - this.cropStart.y);
-      const startX = Math.min(this.cropStart.x, this.cropEnd.x);
-      const startY = Math.min(this.cropStart.y, this.cropEnd.y);
+    try {
+      let finalCanvas = document.createElement('canvas');
+      let finalCtx = finalCanvas.getContext('2d');
       
-      finalCanvas.width = width;
-      finalCanvas.height = height;
-      finalCtx.drawImage(
-        this.originalImage,
-        startX,
-        startY,
-        width,
-        height,
-        0,
-        0,
-        width,
-        height
-      );
-    } else {
-      finalCanvas.width = this.canvas.width;
-      finalCanvas.height = this.canvas.height;
-      finalCtx.drawImage(this.canvas, 0, 0);
-    }
+      if (this.cropStart && this.cropEnd && this.currentTool === 'crop') {
+        const width = Math.abs(this.cropEnd.x - this.cropStart.x);
+        const height = Math.abs(this.cropEnd.y - this.cropStart.y);
+        const startX = Math.min(this.cropStart.x, this.cropEnd.x);
+        const startY = Math.min(this.cropStart.y, this.cropEnd.y);
+        
+        finalCanvas.width = width;
+        finalCanvas.height = height;
+        finalCtx.drawImage(
+          this.originalImage,
+          startX,
+          startY,
+          width,
+          height,
+          0,
+          0,
+          width,
+          height
+        );
+      } else {
+        finalCanvas.width = this.canvas.width;
+        finalCanvas.height = this.canvas.height;
+        finalCtx.drawImage(this.canvas, 0, 0);
+      }
 
-    const imageUrl = finalCanvas.toDataURL('image/png', 1.0);
-    const { saveLocation } = await chrome.storage.sync.get(['saveLocation']);
-    
-    await chrome.downloads.download({
-      url: imageUrl,
-      filename: `${saveLocation}/screenshot-${Date.now()}.png`,
-      saveAs: false
-    });
+      const imageUrl = finalCanvas.toDataURL('image/png', 1.0);
+      const { saveLocation } = await chrome.storage.sync.get(['saveLocation']);
+      
+      await chrome.downloads.download({
+        url: imageUrl,
+        filename: `${saveLocation}/screenshot-${Date.now()}.png`,
+        saveAs: false
+      });
+    } catch (error) {
+      this.showToast('Error saving screenshot');
+      console.error('Save failed:', error);
+    }
   }
 }
 
