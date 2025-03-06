@@ -14,6 +14,7 @@ class ScreenshotEditor {
     this.toastElement = document.createElement('div');
     this.toastElement.className = 'toast';
     document.body.appendChild(this.toastElement);
+    this.canvasRect = this.canvas.getBoundingClientRect(); // Cache rect
     
     try {
       this.checkMode();
@@ -21,6 +22,9 @@ class ScreenshotEditor {
       this.loadScreenshot();
       this.setupEventListeners();
       window.addEventListener('beforeunload', () => this.cleanup());
+      window.addEventListener('resize', () => { // Update on resize
+        this.canvasRect = this.canvas.getBoundingClientRect();
+      });
     } catch (error) {
       console.error('Editor initialization failed:', error);
       this.showToast(`Editor setup failed: ${error.message}`, false, 'error');
@@ -32,7 +36,7 @@ class ScreenshotEditor {
       const startX = Math.min(this.cropStart.x, pos.x);
       const startY = Math.min(this.cropStart.y, pos.y);
       this.drawCropGuides(startX, startY, Math.abs(width), Math.abs(height));
-    }, 60); // Increased from 32ms to 60ms
+    }, 60);
   }
 
   throttle(func, limit) {
@@ -111,6 +115,7 @@ class ScreenshotEditor {
           this.ctx.drawImage(this.offscreenCanvas, 0, 0);
           this.originalImage = img;
           this.currentImageData = this.offscreenCtx.getImageData(0, 0, width, height);
+          this.canvasRect = this.canvas.getBoundingClientRect(); // Update after resize
           this.canvas.style.opacity = '0';
           requestAnimationFrame(() => {
             this.canvas.style.transition = 'opacity 0.3s ease-in-out';
@@ -138,6 +143,7 @@ class ScreenshotEditor {
     this.ctx.fillStyle = '#FF0000';
     this.ctx.font = '16px sans-serif';
     this.ctx.fillText('Screenshot loading failed', 20, 150);
+    this.canvasRect = this.canvas.getBoundingClientRect(); // Update after resize
     chrome.storage.local.remove(['currentScreenshot']);
   }
 
@@ -219,6 +225,7 @@ class ScreenshotEditor {
       this.offscreenCtx.drawImage(tempCanvas, startX, startY, width, height, 0, 0, width, height);
       this.ctx.drawImage(this.offscreenCanvas, 0, 0);
       this.currentImageData = this.offscreenCtx.getImageData(0, 0, width, height);
+      this.canvasRect = this.canvas.getBoundingClientRect(); // Update after resize
 
       if (this.cropOnlyMode) {
         document.querySelectorAll('.tool-item').forEach(tool => {
@@ -362,10 +369,9 @@ class ScreenshotEditor {
   }
 
   getMousePos(e) {
-    const rect = this.canvas.getBoundingClientRect();
     return {
-      x: (e.clientX - rect.left) * (this.canvas.width / rect.width),
-      y: (e.clientY - rect.top) * (this.canvas.height / rect.height)
+      x: (e.clientX - this.canvasRect.left) * (this.canvas.width / this.canvasRect.width),
+      y: (e.clientY - this.canvasRect.top) * (this.canvas.height / this.canvasRect.height)
     };
   }
 
