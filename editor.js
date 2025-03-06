@@ -3,7 +3,7 @@ class ScreenshotEditor {
     this.canvas = document.getElementById('editorCanvas');
     this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
     this.offscreenCanvas = document.createElement('canvas');
-    this.offscreenCtx = this.offscreenCanvas.getContext('2d', { willReadFrequently: true }); // Fix applied here
+    this.offscreenCtx = this.offscreenCanvas.getContext('2d', { willReadFrequently: true });
     this.activeTools = new Set();
     this.isDrawing = false;
     this.cropStart = null;
@@ -32,7 +32,7 @@ class ScreenshotEditor {
       const startX = Math.min(this.cropStart.x, pos.x);
       const startY = Math.min(this.cropStart.y, pos.y);
       this.drawCropGuides(startX, startY, Math.abs(width), Math.abs(height));
-    }, 32);
+    }, 60); // Increased from 32ms to 60ms
   }
 
   throttle(func, limit) {
@@ -205,7 +205,7 @@ class ScreenshotEditor {
       const startY = Math.min(this.cropStart.y, this.cropEnd.y);
 
       const tempCanvas = document.createElement('canvas');
-      const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true }); // Optimize temp canvas
+      const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
       tempCanvas.width = this.canvas.width;
       tempCanvas.height = this.canvas.height;
       tempCtx.drawImage(this.offscreenCanvas, 0, 0);
@@ -283,10 +283,10 @@ class ScreenshotEditor {
 
   prepareFinalCanvas() {
     const finalCanvas = document.createElement('canvas');
-    const finalCtx = finalCanvas.getContext('2d', { willReadFrequently: true }); // Optimize final canvas
+    const finalCtx = finalCanvas.getContext('2d', { willReadFrequently: true });
     if (this.cropStart && this.cropEnd && this.activeTools.has('crop')) {
-      const width = Math.abs(this.cropEnd.x - this.cropStart.x);
-      const height = Math.abs(this.cropEnd.y - this.cropStart.y);
+      const width = Math.abs(this.cropEnd.x - this.cropEnd.x);
+      const height = Math.abs(this.cropEnd.y - this.cropEnd.y);
       const startX = Math.max(0, Math.min(this.cropStart.x, this.cropEnd.x));
       const startY = Math.max(0, Math.min(this.cropStart.y, this.cropEnd.y));
       finalCanvas.width = Math.min(width, this.canvas.width - startX);
