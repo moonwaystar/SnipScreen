@@ -3,7 +3,7 @@ class ScreenshotEditor {
     this.canvas = document.getElementById('editorCanvas');
     this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
     this.offscreenCanvas = document.createElement('canvas');
-    this.offscreenCtx = this.offscreenCanvas.getContext('2d');
+    this.offscreenCtx = this.offscreenCanvas.getContext('2d', { willReadFrequently: true }); // Fix applied here
     this.activeTools = new Set();
     this.isDrawing = false;
     this.cropStart = null;
@@ -11,7 +11,7 @@ class ScreenshotEditor {
     this.currentImageData = null;
     this.maxCanvasSize = { width: 1920, height: 1080 };
     this.cropOnlyMode = false;
-    this.toastElement = document.createElement('div'); // Reusable toast
+    this.toastElement = document.createElement('div');
     this.toastElement.className = 'toast';
     document.body.appendChild(this.toastElement);
     
@@ -60,7 +60,7 @@ class ScreenshotEditor {
     this.offscreenCtx = null;
     this.originalImage = null;
     this.currentImageData = null;
-    this.toastElement.remove(); // Clean up toast
+    this.toastElement.remove();
   }
 
   async checkMode() {
@@ -205,7 +205,7 @@ class ScreenshotEditor {
       const startY = Math.min(this.cropStart.y, this.cropEnd.y);
 
       const tempCanvas = document.createElement('canvas');
-      const tempCtx = tempCanvas.getContext('2d');
+      const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true }); // Optimize temp canvas
       tempCanvas.width = this.canvas.width;
       tempCanvas.height = this.canvas.height;
       tempCtx.drawImage(this.offscreenCanvas, 0, 0);
@@ -283,8 +283,7 @@ class ScreenshotEditor {
 
   prepareFinalCanvas() {
     const finalCanvas = document.createElement('canvas');
-    const finalCtx = finalCanvas.getContext('2d', { willReadFrequently: true });
-    
+    const finalCtx = finalCanvas.getContext('2d', { willReadFrequently: true }); // Optimize final canvas
     if (this.cropStart && this.cropEnd && this.activeTools.has('crop')) {
       const width = Math.abs(this.cropEnd.x - this.cropStart.x);
       const height = Math.abs(this.cropEnd.y - this.cropStart.y);
@@ -497,7 +496,7 @@ class ScreenshotEditor {
     } else {
       this.toastElement.dataset.persistent = 'true';
     }
-    return this.toastElement; // Return for fallback cases
+    return this.toastElement;
   }
 }
 
