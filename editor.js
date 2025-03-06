@@ -2,13 +2,14 @@ class ScreenshotEditor {
   constructor() {
     this.canvas = document.getElementById('editorCanvas');
     this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
+    this.offscreenCanvas = document.createElement('canvas'); // Off-screen canvas
+    this.offscreenCtx = this.offscreenCanvas.getContext('2d');
     this.activeTools = new Set();
     this.isDrawing = false;
     this.cropStart = null;
     this.cropEnd = null;
     this.currentImageData = null;
     this.maxCanvasSize = { width: 1920, height: 1080 };
-    this.toastQueue = [];
     this.cropOnlyMode = false;
     
     try {
@@ -52,6 +53,8 @@ class ScreenshotEditor {
     }
     this.ctx = null;
     this.canvas = null;
+    this.offscreenCanvas = null;
+    this.offscreenCtx = null;
     this.originalImage = null;
     this.currentImageData = null;
   }
@@ -92,15 +95,18 @@ class ScreenshotEditor {
           
           this.canvas.width = width;
           this.canvas.height = height;
+          this.offscreenCanvas.width = width; // Set off-screen canvas size
+          this.offscreenCanvas.height = height;
           this.canvas.style.maxWidth = '100%';
           this.canvas.style.maxHeight = 'calc(100vh - 80px)';
           this.canvas.style.width = 'auto';
           this.canvas.style.height = 'auto';
           this.canvas.style.cursor = 'default';
           
-          this.ctx.drawImage(img, 0, 0, width, height);
+          this.offscreenCtx.drawImage(img, 0, 0, width, height); // Draw to off-screen
+          this.ctx.drawImage(this.offscreenCanvas, 0, 0); // Initial draw to visible canvas
           this.originalImage = img;
-          this.currentImageData = this.ctx.getImageData(0, 0, width, height);
+          this.currentImageData = this.offscreenCtx.getImageData(0, 0, width, height);
           this.canvas.style.opacity = '0';
           requestAnimationFrame(() => {
             this.canvas.style.transition = 'opacity 0.3s ease-in-out';
@@ -121,6 +127,8 @@ class ScreenshotEditor {
   handleLoadFailure() {
     this.canvas.width = 400;
     this.canvas.height = 300;
+    this.offscreenCanvas.width = 400;
+    this.offscreenCanvas.height = 300;
     this.ctx.fillStyle = '#FAFAFA';
     this.ctx.fillRect(0, 0, 400, 300);
     this.ctx.fillStyle = '#FF0000';
@@ -167,14 +175,14 @@ class ScreenshotEditor {
       this.activeTools.delete(tool);
       toolElement.classList.remove('active');
       if (tool === 'crop' && this.currentImageData) {
-        this.ctx.putImageData(this.currentImageData, 0, 0);
+        this.ctx.drawImage(this.offscreenCanvas, 0, 0); // Restore from off-screen
         this.canvas.style.cursor = 'default';
       }
     } else {
       if (this.activeTools.has(otherTool)) {
         this.activeTools.delete(otherTool);
         otherToolElement.classList.remove('active');
-        this.currentImageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+        this.currentImageData = this.offscreenCtx.getImageData(0, 0, this.canvas.width, this.canvas.height);
       }
       
       this.activeTools.add(tool);
@@ -196,13 +204,17 @@ class ScreenshotEditor {
       const tempCtx = tempCanvas.getContext('2d');
       tempCanvas.width = this.canvas.width;
       tempCanvas.height = this.canvas.height;
-      tempCtx.putImageData(this.currentImageData, 0, 0);
+      tempCtx.drawImage(this.offscreenCanvas, 0, 0); // Use off-screen canvas
 
       this.canvas.width = width;
       this.canvas.height = height;
+      this.offscreenCanvas.width = width;
+      this.offscreenCanvas.height = height;
       this.ctx.imageSmoothingEnabled = false;
-      this.ctx.drawImage(tempCanvas, startX, startY, width, height, 0, 0, width, height);
-      this.currentImageData = this.ctx.getImageData(0, 0, width, height);
+      this.offscreenCtx.imageSmoothingEnabled = false;
+      this.offscreenCtx.drawImage(tempCanvas, startX, startY, width, height, 0, 0, width, height);
+      this.ctx.drawImage(this.offscreenCanvas, 0, 0);
+      this.currentImageData = this.offscreenCtx.getImageData(0, 0, width, height);
 
       if (this.cropOnlyMode) {
         document.querySelectorAll('.tool-item').forEach(tool => {
@@ -217,10 +229,7 @@ class ScreenshotEditor {
         this.cropEnd = null;
         this.isDrawing = false;
 
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.putImageData(this.currentImageData, 0, 0);
         this.canvas.style.cursor = 'default';
-
         this.showSpinner(false);
         this.showToast('Crop completed', false, 'success');
       }
@@ -282,12 +291,12 @@ class ScreenshotEditor {
       finalCanvas.width = Math.min(width, this.canvas.width - startX);
       finalCanvas.height = Math.min(height, this.canvas.height - startY);
       finalCtx.imageSmoothingEnabled = false;
-      finalCtx.drawImage(this.canvas, startX, startY, finalCanvas.width, finalCanvas.height, 0, 0, finalCanvas.width, finalCanvas.height);
+      finalCtx.drawImage(this.offscreenCanvas, startX, startY, finalCanvas.width, finalCanvas.height, 0, 0, finalCanvas.width, finalCanvas.height);
     } else {
       finalCanvas.width = this.canvas.width;
       finalCanvas.height = this.canvas.height;
       finalCtx.imageSmoothingEnabled = false;
-      finalCtx.drawImage(this.canvas, 0, 0, this.canvas.width, this.canvas.height);
+      finalCtx.drawImage(this.offscreenCanvas, 0, 0); // Use off-screen canvas
     }
     return finalCanvas;
   }
@@ -368,17 +377,14 @@ class ScreenshotEditor {
     if (this.activeTools.has('crop')) {
       this.cropStart = pos;
       this.canvas.style.cursor = 'crosshair';
-      if (this.currentImageData) {
-        this.ctx.putImageData(this.currentImageData, 0, 0);
-      }
     }
     
     if (this.activeTools.has('annotate')) {
       this.annotateStart = pos;
-      this.ctx.beginPath();
-      this.ctx.moveTo(pos.x, pos.y);
-      this.ctx.strokeStyle = '#000000';
-      this.ctx.lineWidth = 2;
+      this.offscreenCtx.beginPath();
+      this.offscreenCtx.moveTo(pos.x, pos.y);
+      this.offscreenCtx.strokeStyle = '#000000';
+      this.offscreenCtx.lineWidth = 2;
     }
   }
 
@@ -399,14 +405,13 @@ class ScreenshotEditor {
       const width = pos.x - this.annotateStart.x;
       const height = pos.y - this.annotateStart.y;
       requestAnimationFrame(() => {
-        if (this.currentImageData) {
-          this.ctx.putImageData(this.currentImageData, 0, 0);
-        }
-        this.ctx.fillStyle = '#000000';
-        this.ctx.fillRect(this.annotateStart.x, this.annotateStart.y, width, height);
-        this.ctx.strokeStyle = '#000000';
-        this.ctx.lineWidth = 1;
-        this.ctx.strokeRect(this.annotateStart.x, this.annotateStart.y, width, height);
+        this.offscreenCtx.fillStyle = '#000000';
+        this.offscreenCtx.fillRect(this.annotateStart.x, this.annotateStart.y, width, height);
+        this.offscreenCtx.strokeStyle = '#000000';
+        this.offscreenCtx.lineWidth = 1;
+        this.offscreenCtx.strokeRect(this.annotateStart.x, this.annotateStart.y, width, height);
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.drawImage(this.offscreenCanvas, 0, 0);
       });
     }
   }
@@ -427,8 +432,10 @@ class ScreenshotEditor {
     }
     
     if (this.activeTools.has('annotate')) {
-      this.ctx.closePath();
-      this.currentImageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+      this.offscreenCtx.closePath();
+      this.currentImageData = this.offscreenCtx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      this.ctx.drawImage(this.offscreenCanvas, 0, 0);
     }
   }
 
@@ -438,9 +445,8 @@ class ScreenshotEditor {
     width = Math.max(0, Math.min(width, maxWidth));
     height = Math.max(0, Math.min(height, maxHeight));
     
-    if (this.currentImageData) {
-      this.ctx.putImageData(this.currentImageData, 0, 0);
-    }
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.drawImage(this.offscreenCanvas, 0, 0); // Composite off-screen canvas
     
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
     this.ctx.fillRect(0, 0, this.canvas.width, y);
