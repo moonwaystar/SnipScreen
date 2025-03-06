@@ -2,7 +2,7 @@ class ScreenshotEditor {
   constructor() {
     this.canvas = document.getElementById('editorCanvas');
     this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
-    this.offscreenCanvas = document.createElement('canvas'); // Off-screen canvas
+    this.offscreenCanvas = document.createElement('canvas');
     this.offscreenCtx = this.offscreenCanvas.getContext('2d');
     this.activeTools = new Set();
     this.isDrawing = false;
@@ -11,6 +11,9 @@ class ScreenshotEditor {
     this.currentImageData = null;
     this.maxCanvasSize = { width: 1920, height: 1080 };
     this.cropOnlyMode = false;
+    this.toastElement = document.createElement('div'); // Reusable toast
+    this.toastElement.className = 'toast';
+    document.body.appendChild(this.toastElement);
     
     try {
       this.checkMode();
@@ -57,6 +60,7 @@ class ScreenshotEditor {
     this.offscreenCtx = null;
     this.originalImage = null;
     this.currentImageData = null;
+    this.toastElement.remove(); // Clean up toast
   }
 
   async checkMode() {
@@ -95,7 +99,7 @@ class ScreenshotEditor {
           
           this.canvas.width = width;
           this.canvas.height = height;
-          this.offscreenCanvas.width = width; // Set off-screen canvas size
+          this.offscreenCanvas.width = width;
           this.offscreenCanvas.height = height;
           this.canvas.style.maxWidth = '100%';
           this.canvas.style.maxHeight = 'calc(100vh - 80px)';
@@ -103,8 +107,8 @@ class ScreenshotEditor {
           this.canvas.style.height = 'auto';
           this.canvas.style.cursor = 'default';
           
-          this.offscreenCtx.drawImage(img, 0, 0, width, height); // Draw to off-screen
-          this.ctx.drawImage(this.offscreenCanvas, 0, 0); // Initial draw to visible canvas
+          this.offscreenCtx.drawImage(img, 0, 0, width, height);
+          this.ctx.drawImage(this.offscreenCanvas, 0, 0);
           this.originalImage = img;
           this.currentImageData = this.offscreenCtx.getImageData(0, 0, width, height);
           this.canvas.style.opacity = '0';
@@ -175,7 +179,7 @@ class ScreenshotEditor {
       this.activeTools.delete(tool);
       toolElement.classList.remove('active');
       if (tool === 'crop' && this.currentImageData) {
-        this.ctx.drawImage(this.offscreenCanvas, 0, 0); // Restore from off-screen
+        this.ctx.drawImage(this.offscreenCanvas, 0, 0);
         this.canvas.style.cursor = 'default';
       }
     } else {
@@ -204,7 +208,7 @@ class ScreenshotEditor {
       const tempCtx = tempCanvas.getContext('2d');
       tempCanvas.width = this.canvas.width;
       tempCanvas.height = this.canvas.height;
-      tempCtx.drawImage(this.offscreenCanvas, 0, 0); // Use off-screen canvas
+      tempCtx.drawImage(this.offscreenCanvas, 0, 0);
 
       this.canvas.width = width;
       this.canvas.height = height;
@@ -264,8 +268,6 @@ class ScreenshotEditor {
       const blob = await (await fetch(dataUrl)).blob();
       await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
 
-      const persistentToast = document.querySelector('.toast[data-persistent]');
-      if (persistentToast) persistentToast.remove();
       this.showToast('Screenshot copied to clipboard!', false, 'success');
       await chrome.storage.local.remove('currentScreenshot');
     } catch (error) {
@@ -296,7 +298,7 @@ class ScreenshotEditor {
       finalCanvas.width = this.canvas.width;
       finalCanvas.height = this.canvas.height;
       finalCtx.imageSmoothingEnabled = false;
-      finalCtx.drawImage(this.offscreenCanvas, 0, 0); // Use off-screen canvas
+      finalCtx.drawImage(this.offscreenCanvas, 0, 0);
     }
     return finalCanvas;
   }
@@ -311,7 +313,7 @@ class ScreenshotEditor {
         filename: `SnipScreen-${Date.now()}.png`,
         saveAs: true
       });
-      toast.remove();
+      this.toastElement.classList.remove('show');
     });
   }
 
@@ -331,8 +333,6 @@ class ScreenshotEditor {
       
       await this.tryDownload(dataUrl, `${saveLocation}/SnipScreen-${Date.now()}.png`, 2);
       
-      const persistentToast = document.querySelector('.toast[data-persistent]');
-      if (persistentToast) persistentToast.remove();
       this.showToast('Screenshot saved successfully!', false, 'success');
     } catch (error) {
       console.error('Save failed:', error);
@@ -446,7 +446,7 @@ class ScreenshotEditor {
     height = Math.max(0, Math.min(height, maxHeight));
     
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    this.ctx.drawImage(this.offscreenCanvas, 0, 0); // Composite off-screen canvas
+    this.ctx.drawImage(this.offscreenCanvas, 0, 0);
     
     this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
     this.ctx.fillRect(0, 0, this.canvas.width, y);
@@ -485,32 +485,19 @@ class ScreenshotEditor {
   }
 
   showToast(message, persist = false, type = 'info') {
-    const toast = this.createToastElement(message, type);
-    document.body.appendChild(toast);
-    
-    requestAnimationFrame(() => toast.classList.add('show'));
+    this.toastElement.textContent = message;
+    this.toastElement.style.background = type === 'error' ? 'rgba(255, 59, 48, 0.9)' :
+                                         type === 'success' ? 'rgba(52, 199, 89, 0.9)' :
+                                         'rgba(50, 50, 50, 0.9)';
+    requestAnimationFrame(() => this.toastElement.classList.add('show'));
     if (!persist) {
       setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 300);
+        this.toastElement.classList.remove('show');
       }, type === 'error' ? 5000 : 2500);
     } else {
-      toast.dataset.persistent = 'true';
+      this.toastElement.dataset.persistent = 'true';
     }
-  }
-
-  createToastElement(message, type) {
-    const existingToast = document.querySelector('.toast');
-    if (existingToast) existingToast.remove();
-
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.textContent = message;
-    
-    if (type === 'error') toast.style.background = 'rgba(255, 59, 48, 0.9)';
-    else if (type === 'success') toast.style.background = 'rgba(52, 199, 89, 0.9)';
-    
-    return toast;
+    return this.toastElement; // Return for fallback cases
   }
 }
 
