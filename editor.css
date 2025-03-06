@@ -1,0 +1,147 @@
+body {
+  margin: 0;
+  padding: 0;
+  background: #FAFAFA;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+.toolbar {
+  padding: 8px 16px;
+  background: #FAFAFA;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+  display: flex;
+  justify-content: center;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+
+.tool-group {
+  display: flex;
+  gap: 12px;
+  max-width: 400px;
+  width: 100%;
+  justify-content: center;
+}
+
+.tool-item {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1D1D1F;
+  cursor: pointer;
+  transition: all 0.2s ease-out;
+  position: relative;
+  border-radius: 6px;
+}
+
+.tool-item i {
+  font-size: 18px;
+}
+
+.tool-item:hover {
+  color: #007AFF;
+  transform: scale(1.1);
+  background: rgba(0, 122, 255, 0.1);
+}
+
+.tool-item.active {
+  color: #007AFF;
+  background: rgba(0, 122, 255, 0.2);
+}
+
+.tool-item#shareTool:hover {
+  color: #34C759;
+  background: rgba(52, 199, 89, 0.1);
+}
+
+.tool-item#shareTool.active {
+  color: #34C759;
+  background: rgba(52, 199, 89, 0.2);
+}
+
+.tool-item#saveTool:hover {
+  color: #007AFF;
+  background: rgba(0, 122, 255, 0.1);
+}
+
+.tool-item#saveTool.active {
+  color: #007AFF;
+  background: rgba(0, 122, 255, 0.2);
+}
+
+.tool-item::after {
+  content: attr(title);
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(50, 50, 50, 0.9);
+  color: #FFFFFF;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.tool-item:hover::after {
+  opacity: 1;
+  visibility: visible;
+  margin-top: 6px;
+}
+
+#editorContainer {
+  margin: 56px 24px 24px;
+  display: flex;
+  justify-content: center;
+  overflow: auto;
+  height: calc(100vh - 80px);
+}
+
+#editorCanvas {
+  background: #FFFFFF;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+  border: 2px solid transparent;
+}
+
+#editorCanvas:hover,
+#editorCanvas:focus {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  border: 2px solid rgba(0, 122, 255, 0.3);
+}
+
+.toast {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(50, 50, 50, 0.9);
+  backdrop-filter: blur(8px);
+  color: #FFFFFF;
+  padding: 10px 20px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}

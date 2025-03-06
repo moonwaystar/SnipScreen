@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SnipScreen Editor</title>
+  <link rel="stylesheet" href="editor.css">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+  <nav class="toolbar" role="toolbar" aria-label="Editing tools">
+    <div class="tool-group">
+      <div class="tool-item" id="cropTool" aria-label="Crop screenshot" title="Crop">
+        <i class="fas fa-crop-alt"></i>
+      </div>
+      <div class="tool-item" id="annotateTool" aria-label="Annotate screenshot" title="Annotate">
+        <i class="fas fa-paint-brush"></i>
+      </div>
+      <div class="tool-item" id="shareTool" aria-label="Share screenshot" title="Share">
+        <i class="fas fa-share"></i>
+      </div>
+      <div class="tool-item" id="saveTool" aria-label="Save screenshot" title="Save">
+        <i class="fas fa-floppy-disk"></i>
+      </div>
+      <div class="tool-item spinner" id="spinner" aria-hidden="true" style="display: none;">
+        <i class="fas fa-spinner fa-spin"></i>
+      </div>
+    </div>
+  </nav>
+  <main id="editorContainer" role="main">
+    <canvas id="editorCanvas" aria-label="Screenshot editing canvas"></canvas>
+  </main>
+  <script src="editor.js"></script>
+</body>
+</html>
